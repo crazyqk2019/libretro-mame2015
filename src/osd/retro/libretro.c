@@ -1,4 +1,4 @@
-#include <unistd.h>
+﻿#include <unistd.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -159,40 +159,40 @@ void retro_set_environment(retro_environment_t cb)
      * to have these options in a logical order
      * common for MAME/MESS/UME. */
 
-    { option_read_config, "Read configuration; disabled|enabled" },
+    { option_read_config, "读取配置; disabled|enabled" },
 
     /* ONLY FOR MESS/UME */
 #if !defined(WANT_MAME)
-    { option_write_config, "Write configuration; disabled|enabled" },
-    { option_saves, "Save state naming; game|system" },
+    { option_write_config, "写入配置; disabled|enabled" },
+    { option_saves, "存档命名方式; 游戏|系统" },
 #endif
 
     /* common for MAME/MESS/UME */
-    { option_auto_save, "Auto save/load states; disabled|enabled" },
-    { option_mouse, "Enable in-game mouse; disabled|enabled" },
-    { option_throttle, "Enable throttle; disabled|enabled" },
-    { option_cheats, "Enable cheats; disabled|enabled" },
+    { option_auto_save, "自动保存/载入存档; disabled|enabled" },
+    { option_mouse, "启用游戏内鼠标; disabled|enabled" },
+    { option_throttle, "启用速度限制; disabled|enabled" },
+    { option_cheats, "启用金手指; disabled|enabled" },
 //  { option_nobuffer, "Nobuffer patch; disabled|enabled" },
-    { option_nag, "Hide nag screen; disabled|enabled" },
-    { option_info, "Hide gameinfo screen; disabled|enabled" },
-    { option_warnings, "Hide warnings screen; disabled|enabled" },
-    { option_renderer, "Alternate render method; disabled|enabled" },
+    { option_nag, "隐藏烦人的信息屏幕; disabled|enabled" },
+    { option_info, "隐藏游戏信息屏幕; disabled|enabled" },
+    { option_warnings, "隐藏警告信息屏幕; disabled|enabled" },
+    { option_renderer, "替代的渲染方式; disabled|enabled" },
 
     /* ONLY FOR MESS/UME */
 #if !defined(WANT_MAME)
-    { option_softlist, "Enable softlists; enabled|disabled" },
-    { option_softlist_media, "Softlist automatic media type; enabled|disabled" },
+    { option_softlist, "启用家用机模拟; enabled|disabled" },
+    { option_softlist_media, "家用机自动媒体类型; enabled|disabled" },
 #if defined(WANT_MESS)
-    { option_media, "Media type; cart|flop|cdrm|cass|hard|serl|prin" },
+    { option_media, "媒体类型; cart|flop|cdrm|cass|hard|serl|prin" },
 #elif defined(WANT_UME)
-    { option_media, "Media type; rom|cart|flop|cdrm|cass|hard|serl|prin" },
+    { option_media, "媒体类型; rom|cart|flop|cdrm|cass|hard|serl|prin" },
 #endif
-    { option_bios, "Boot to BIOS; disabled|enabled" },
+    { option_bios, "启动到BIOS; disabled|enabled" },
 #endif
 
     /* common for MAME/MESS/UME */
-    { option_osd, "Boot to OSD; disabled|enabled" },
-    { option_cli, "Boot from CLI; disabled|enabled" },
+    { option_osd, "启动到OSD菜单; disabled|enabled" },
+    { option_cli, "从命令行启动; disabled|enabled" },
     { NULL, NULL },
 
    };
@@ -343,9 +343,9 @@ static void check_variables(void)
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
-      if (!strcmp(var.value, "game"))
+      if (!strcmp(var.value, "游戏"))
          game_specific_saves_enable = true;
-      if (!strcmp(var.value, "system"))
+      if (!strcmp(var.value, "系统"))
          game_specific_saves_enable = false;
    }
 
