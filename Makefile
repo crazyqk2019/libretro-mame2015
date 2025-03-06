@@ -66,6 +66,12 @@ else
 endif
 $(info COREDEF = $(CORE_DEFINE))
 
+ifeq ($(SUBTARGET), cdi)
+   TARGET := mame
+   TARGET_NAME = cdi2015
+   CORE_DEFINE := -DWANT_PHILIPS_CDI
+endif 
+
 ifndef SUBTARGET
    SUBTARGET = $(TARGET)
 endif
@@ -80,10 +86,10 @@ endif
 
 # start with empties for everything
 CCOMFLAGS = -DDISABLE_MIDI -fno-delete-null-pointer-checks
-CONLYFLAGS = -fpermissive
+CONLYFLAGS = -fpermissive -fno-stack-protector
 CONLYFLAGS += $(CORE_DEFINE)
 COBJFLAGS =
-CPPONLYFLAGS = -fpermissive
+CPPONLYFLAGS = -fpermissive -fno-stack-protector
 CPPONLYFLAGS += $(CORE_DEFINE)
 # LDFLAGS are used generally; LDFLAGSEMULATOR are additional
 # flags only used when linking the core emulator
@@ -133,8 +139,6 @@ ifneq (,$(findstring unix,$(platform)))
    endif
    LDFLAGS +=  $(fpic) $(SHARED)
    REALCC ?= gcc
-   NATIVECC ?= g++
-   NATIVECFLAGS ?= -std=gnu99
    BASELIBS += -lpthread
    CXX ?= g++
    #workaround for mame bug (c++ in .c files)
@@ -147,6 +151,10 @@ ifneq (,$(findstring unix,$(platform)))
    endif
    ifeq ($(firstword $(filter amd64,$(UNAME))),amd64)
       PTR64 = 1
+   endif
+   ifeq ($(firstword $(filter aarch64,$(UNAME))),aarch64)
+      PTR64 = 1
+      PLATCFLAGS += -DSDLMAME_NO64BITIO -DSDLMAME_ARM -DFORCE_DRC_C_BACKEND
    endif
    ifeq ($(firstword $(filter ppc64,$(UNAME))),ppc64)
       PTR64 = 1
@@ -168,18 +176,17 @@ else ifeq ($(platform), osx)
    TARGETLIB := $(TARGET_NAME)_libretro.dylib
    TARGETOS = macosx
    fpic := -fPIC -mmacosx-version-min=10.7
-   LIBCXX := libstdc++
-   LDFLAGSEMULATOR +=  -stdlib=$(LIBCXX)
+   LIBCPLUSPLUS := -stdlib=libc++
+   LDFLAGSEMULATOR +=  $(LIBCPLUSPLUS)
    PLATCFLAGS += $(fpic)
    SHARED := -dynamiclib
-   CXX_AS = c++
-        CC = cc
+   CXX_AS ?= c++
+   CC ?= cc
    LD = $(CXX_AS) -stdlib=$(LIBCXX)
-   REALCC   = $(CC)
-   NATIVECC = $(CXX_AS)
-   NATIVECFLAGS = -std=gnu99
+   REALCC   = cc
+   CFLAGS += $(LIBCPLUSPLUS)
    LDFLAGS +=  $(fpic) $(SHARED)
-   AR = @ar
+   AR ?= @ar
    PYTHON ?= @python
    ifeq ($(COMMAND_MODE),"legacy")
       ARFLAGS = -crs
@@ -219,7 +226,6 @@ else ifneq (,$(findstring ios,$(platform)))
    LD = $(CXX) -stdlib=$(LIBCXX)
    LDFLAGS +=  $(fpic) $(SHARED)
    REALCC   = $(CC)
-   NATIVECC = $(CXX_AS)
    PYTHON ?= @python
    CFLAGS += -DIOS
    LDFLAGSEMULATOR += -stdlib=$(LIBCXX)
@@ -241,7 +247,6 @@ else ifeq ($(platform), tvos-arm64)
    LD = $(CXX) -stdlib=$(LIBCXX)
    LDFLAGS +=  $(fpic) $(SHARED)
    REALCC   = $(CC)
-   NATIVECC = $(CXX_AS)
    PYTHON ?= @python
    CFLAGS += -DIOS
    LDFLAGSEMULATOR += -stdlib=$(LIBCXX)
@@ -280,8 +285,6 @@ else ifeq ($(platform), android)
 
 
    REALCC   = $(ANDROID_NDK_ARM)/bin/arm-linux-androideabi-gcc
-   NATIVECC = g++
-   NATIVECFLAGS = -std=gnu99
    CCOMFLAGS += $(PLATCFLAGS)
 
    LIBS += -lc -ldl -lm -landroid -llog -lsupc++ $(ANDROID_NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.9/libs/armeabi-v7a/thumb/libgnustl_static.a -lgcc
@@ -391,15 +394,11 @@ else ifeq ($(platform), wincross)
 else ifeq ($(platform), emscripten)
    TARGETLIB := $(TARGET_NAME)_libretro_emscripten.bc
 
-   NATIVELD = em++
-   NATIVELDFLAGS = -Wl,--warn-common -lstdc++
-   NATIVECC = em++
-   NATIVECFLAGS = -std=gnu99
    REALCC = emcc
    CC_AS = emcc 
    CC = em++ 
    AR = emar
-   LD = em++
+   LD = emar
    FORCE_DRC_C_BACKEND = 1
    CCOMFLAGS += -DLSB_FIRST -fsigned-char -finline  -fno-common -fno-builtin 
    ARFLAGS := rcs
@@ -413,8 +412,8 @@ else ifeq ($(platform), emscripten)
    PLATCFLAGS += -DALIGN_INTS -DALIGN_SHORTS 
    CCOMFLAGS += $(PLATCFLAGS) #-ffast-math 
    PTR64 = 0
-   CFLAGS +=  -s USE_ZLIB=1 
-   CXXFLAGS += -s USE_ZLIB=1 
+   CFLAGS +=  -s USE_ZLIB=1 -DNO_MEM_TRACKING 
+   CXXFLAGS += -s USE_ZLIB=1 -DNO_MEM_TRACKING 
    LDFLAGS += -s USE_ZLIB=1  $(EXCEPT_FLAGS) 
    LDFLAGSEMULATOR +=
 
@@ -422,11 +421,9 @@ else ifeq ($(platform), emscripten)
 else
    TARGETLIB := $(TARGET_NAME)_libretro.dll
    TARGETOS = win32
-   CC = g++
-   LD = g++
-   REALCC   = gcc
-   NATIVECC = g++
-   NATIVECFLAGS = -std=gnu99
+   CC ?= g++
+   LD = $(CC)
+   REALCC   = $(CC)
    SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=src/osd/retro/link.T
    CCOMFLAGS += -D__WIN32__
    LDFLAGS += $(SHARED)
@@ -514,8 +511,8 @@ endif
 # utilities
 MD = -mkdir$(EXE_EXT)
 RM = @rm -f
-OBJDUMP = @objdump
-PYTHON ?= @python2
+OBJDUMP ?= @objdump
+PYTHON ?= @python3
 
 #-------------------------------------------------
 # form the name of the executable
@@ -630,7 +627,7 @@ CPPONLYFLAGS += \
 ifneq (,$(findstring clang,$(CC)))
    include $(SRC)/build/flags_clang.mak
 else
-   ifneq (,$(findstring emcc,$(CC)))
+   ifneq (,$(findstring em++,$(CC)))
       # Emscripten compiler is based on clang
       include $(SRC)/build/flags_clang.mak
    else
@@ -658,6 +655,7 @@ INCPATH += \
    -I$(SRC)/emu/layout \
    -I$(SRC)/lib/util \
    -I$(SRC)/lib \
+   -I$(SRC)/osd/retro/libretro-common/include/compat/zlib \
    -I$(3RDPARTY) \
    -I$(SRC)/osd \
    -I$(SRC)/osd/retro \
@@ -691,14 +689,18 @@ ifneq ($(TARGETOS),emscripten)
 LIBEMU = $(OBJ)/libemu.a
 LIBOPTIONAL = $(OBJ)/$(TARGET)/$(TARGET)/liboptional.a
 LIBDASM = $(OBJ)/$(TARGET)/$(TARGET)/libdasm.a
-LIBBUS = $(OBJ)/$(TARGET)/$(TARGET)/libbus.a
+ifneq ($(SUBTARGET), cdi)
+	LIBBUS = $(OBJ)/$(TARGET)/$(TARGET)/libbus.a
+endif
 LIBUTIL = $(OBJ)/libutil.a
 LIBOCORE = $(OBJ)/libocore.a
 else
 LIBEMU = $(LIBEMUOBJS)
 LIBOPTIONAL = $(CPUOBJS) $(SOUNDOBJS) $(VIDEOOBJS) $(MACHINEOBJS) $(NETLISTOBJS)
 LIBDASM = $(DASMOBJS) 
-LIBBUS = $(BUSOBJS)
+ifneq ($(SUBTARGET), cdi)
+	LIBBUS = $(BUSOBJS)
+endif
 LIBUTIL = $(UTILOBJS) 
 LIBOCORE = $(OSDCOREOBJS) 
 endif
@@ -918,7 +920,7 @@ $(EMULATOR): $(VERSIONOBJ) $(EMULATOROBJ)
 	@echo Linking $@...
 ifeq ($(TARGETOS),emscripten)
 # Emscripten's linker seems to be stricter about the ordering of files
-	$(LD) $(LDFLAGS) $(LDFLAGSEMULATOR) $(VERSIONOBJ) -Wl,--start-group $(EMULATOROBJ) -Wl,--end-group $(LIBS) -o $@
+	$(AR) rcs $@ $^
 else
 	$(LD) $(LDFLAGS) $(LDFLAGSEMULATOR) $(VERSIONOBJ) $(EMULATOROBJ) $(LIBS) -o $@
 endif
@@ -935,8 +937,11 @@ endif
 $(EMULATOR): $(EMUINFOOBJ) $(DRIVLISTOBJ) $(DRVLIBS) $(LIBOSD) $(LIBBUS) $(LIBOPTIONAL) $(LIBEMU) $(LIBDASM) $(LIBUTIL) $(EXPAT) $(SOFTFLOAT) $(JPEG_LIB) $(FLAC_LIB) $(7Z_LIB) $(FORMATS_LIB) $(LUA_LIB) $(SQLITE3_LIB) $(WEB_LIB) $(ZLIB) $(LIBOCORE) $(MIDI_LIB) $(RESFILE)
 	$(CC) $(CDEFS) $(CFLAGS) -c $(SRC)/version.c -o $(VERSIONOBJ)
 	@echo Linking $(TARGETLIB)
+ifeq ($(TARGETOS),emscripten)
+	$(AR) rcs $@ $^
+else
 	$(LD) $(LDFLAGS) $(LDFLAGSEMULATOR) $(VERSIONOBJ) $^ $(LIBS) -o $(TARGETLIB)
-
+endif
 
 #-------------------------------------------------
 # generic rules
@@ -969,13 +974,15 @@ ifeq ($(TARGETOS),emscripten)
 # Avoid using .a files with Emscripten, link to bitcode instead
 $(OBJ)/%.a:
 	@echo Linking $@...
-	$(RM) $@
-	$(LD) $^ -o $@
+	$(AR) rcs $@ $^
 $(OBJ)/%.bc: $(OBJ)/%.a
 	@cp $< $@
 else
+	# Only run ar if the prerequisites list
+	# is valid (not empty) - otherwise OSX
+	# builds will fail
 $(OBJ)/%.a:
 	@echo Archiving $@...
 	$(RM) $@
-	$(AR) $(ARFLAGS) $@ $^
+	@$(if $(strip $^),$(AR) $(ARFLAGS) $@ $^,)
 endif
